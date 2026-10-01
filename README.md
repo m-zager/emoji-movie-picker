@@ -1,4 +1,4 @@
-# 🎬 Emoji Movie Picker
+# 🎬 Roll for Movie
 
 Can't decide what to watch? Tap a few vibe emojis (😂 😱 🚀 🦖 …) and get a ranked list of matching movies, or hit **🎲 Surprise me** for a single random pick.
 

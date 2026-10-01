@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Emoji Movie Picker",
+  title: "Roll for Movie",
   description: "Pick a few emojis, get a movie to watch.",
 };
 
