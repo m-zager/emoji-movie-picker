@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import GrainBurst from "./grain-burst";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   PICK_COUNT,
   SERVICE_LOGO_BASE,
@@ -47,7 +48,7 @@ function Reel({ emoji, index }: { emoji: string; index: number }) {
       style={{ animationDuration: `${0.7 + index * 0.1}s` }}
     >
       {[...strip, ...strip].map((e, i) => (
-        <span key={i} className="flex size-20 shrink-0 items-center justify-center sm:size-24">
+        <span key={i} className="flex h-[88px] w-full shrink-0 items-center justify-center sm:h-[150px]">
           {e}
         </span>
       ))}
@@ -69,7 +70,7 @@ function ProviderRow({
   if (providers.length === 0) return null;
   return (
     <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</p>
       <ul className="flex flex-wrap justify-center gap-2 sm:justify-start">
         {providers.map((p) => (
           <li key={p.name}>
@@ -80,7 +81,7 @@ function ProviderRow({
                 width={44}
                 height={44}
                 className={`rounded-lg shadow-sm transition hover:scale-110 ${
-                  mine.has(p.id) ? "ring-2 ring-amber-500 ring-offset-2 ring-offset-amber-50 dark:ring-offset-zinc-900" : ""
+                  mine.has(p.id) ? "ring-2 ring-lime ring-offset-2 ring-offset-ink" : ""
                 }`}
               />
             </a>
@@ -95,7 +96,7 @@ function WhereToWatch({ pick, services }: { pick: MoviePick; services: ServiceKe
   const { watch, onYourServices } = pick;
   const mine = providerIdsFor(services);
   const notOnYours = onYourServices === false && (
-    <p className="mt-6 rounded-xl bg-black/5 px-4 py-3 text-sm text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+    <p className="mt-6 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
       ⚠️ Couldn&apos;t find a match streaming on your services, so here&apos;s the best overall pick.
     </p>
   );
@@ -103,7 +104,7 @@ function WhereToWatch({ pick, services }: { pick: MoviePick; services: ServiceKe
     return (
       <>
         {notOnYours}
-        <p className="mt-6 text-sm text-zinc-500">No streaming info found for the US.</p>
+        <p className="mt-6 text-sm text-zinc-400">No streaming info found for the US.</p>
       </>
     );
   }
@@ -112,7 +113,7 @@ function WhereToWatch({ pick, services }: { pick: MoviePick; services: ServiceKe
       {notOnYours}
       <ProviderRow label="Stream" providers={watch.stream} link={watch.link} mine={mine} />
       <ProviderRow label="Rent or buy" providers={watch.rentOrBuy} link={watch.link} mine={mine} />
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-400">
         Streaming data by{" "}
         <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" className="underline">
           JustWatch
@@ -154,7 +155,7 @@ function ServicePicker({
                 title={name}
                 className={`block rounded-lg transition disabled:cursor-not-allowed ${
                   on
-                    ? "ring-2 ring-amber-500 ring-offset-2 ring-offset-background"
+                    ? "ring-2 ring-lime ring-offset-2 ring-offset-ink"
                     : "opacity-40 grayscale hover:opacity-80 hover:grayscale-0"
                 }`}
               >
@@ -164,7 +165,7 @@ function ServicePicker({
           );
         })}
       </ul>
-      <p className="text-xs text-zinc-500">
+      <p className="text-center text-xs text-zinc-400">
         {services.length === 0 ? (
           "Tap the streaming services you have, or leave them all off for any movie."
         ) : (
@@ -183,8 +184,8 @@ function ServicePicker({
 type Mode = "auto" | "manual";
 
 const MODES: { value: Mode; label: string }[] = [
-  { value: "auto", label: "🎲 Pick for me" },
-  { value: "manual", label: "👆 Pick Myself" },
+  { value: "auto", label: "Pick for me" },
+  { value: "manual", label: "Pick Myself" },
 ];
 
 function randomEmojis() {
@@ -196,7 +197,7 @@ function randomEmojis() {
   return pool.slice(0, PICK_COUNT);
 }
 
-export default function EmojiMoviePicker() {
+export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
   const [mode, setMode] = useState<Mode>("manual");
   const [selected, setSelected] = useState<string[]>([]);
   const [pick, setPick] = useState<MoviePick | null>(null);
@@ -230,6 +231,7 @@ export default function EmojiMoviePicker() {
 
   function toggle(emoji: string) {
     setError(null);
+    setPick(null);
     setSelected((prev) =>
       prev.includes(emoji)
         ? prev.filter((e) => e !== emoji)
@@ -241,6 +243,7 @@ export default function EmojiMoviePicker() {
 
   function switchMode(next: Mode) {
     setMode(next);
+    setPick(null);
     setSelected([]);
     setError(null);
   }
@@ -284,161 +287,160 @@ export default function EmojiMoviePicker() {
     setError(null);
   }
 
-  if (pick) {
-    return (
-      <div className="flex flex-col items-center gap-6">
-        <article className="flex w-full flex-col items-center gap-8 rounded-3xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-100 p-8 shadow-sm sm:flex-row sm:items-start dark:border-amber-400/30 dark:from-amber-400/10 dark:to-orange-500/10">
-          {pick.posterUrl && (
-            <Image
-              src={pick.posterUrl}
-              alt={`${pick.title} poster`}
-              width={500}
-              height={750}
-              className="w-48 shrink-0 rounded-xl shadow-lg sm:w-56"
-            />
-          )}
-          <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-            <p className="text-3xl tracking-widest">{selected.join(" ")}</p>
-            <p className="mt-5 text-sm font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300">
-              Tonight you&apos;re watching
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight">🍿 {pick.title}</h2>
-            <p className="mt-1 text-zinc-500">{pick.year}</p>
-            <p className="mt-5 text-lg leading-relaxed text-zinc-700 dark:text-zinc-300">{pick.reason}</p>
-            <WhereToWatch pick={pick} services={services} />
-          </div>
-        </article>
-        <button
-          type="button"
-          onClick={tryAgain}
-          className="rounded-full bg-foreground px-6 py-3 font-medium text-background transition hover:opacity-80"
-        >
-          🔄 Try again
-        </button>
-      </div>
-    );
-  }
+  const slots = (
+    <div className="flex gap-4" aria-label="Your picks">
+      {Array.from({ length: PICK_COUNT }, (_, i) => {
+        const emoji = selected[i];
+        const spinning = loading && i >= reelsStopped;
+        const justStopped = loading && !spinning;
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => emoji && toggle(emoji)}
+            disabled={!emoji || loading || mode === "auto"}
+            aria-label={emoji ? `Remove ${labelFor(emoji)}` : `Empty slot ${i + 1}`}
+            className="relative flex size-[88px] items-center justify-center overflow-hidden rounded-lg bg-white/[0.06] text-5xl shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] backdrop-blur-md transition enabled:hover:bg-white/10 sm:size-[150px] sm:text-7xl"
+          >
+            {spinning ? (
+              <Reel emoji={emoji} index={i} />
+            ) : emoji ? (
+              <span
+                key={justStopped ? "stopped" : "picked"}
+                className={
+                  justStopped
+                    ? "animate-[reel-stop_450ms_cubic-bezier(0.3,1.6,0.5,1)]"
+                    : "animate-[pop_200ms_ease-out]"
+                }
+              >
+                {emoji}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const buttonClass =
+    "rounded-lg bg-lime p-4 text-base leading-5 text-ink transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40";
+
+  const result = pick && (
+    <div className="flex w-full max-w-5xl flex-col items-center gap-8">
+      <article className="flex w-full flex-col items-center gap-8 rounded-2xl border border-white/10 bg-white/5 p-8 sm:flex-row sm:items-start">
+        {pick.posterUrl && (
+          <Image
+            src={pick.posterUrl}
+            alt={`${pick.title} poster`}
+            width={500}
+            height={750}
+            className="w-48 shrink-0 rounded-lg sm:w-56"
+          />
+        )}
+        <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
+          <p className="text-3xl tracking-widest">{selected.join(" ")}</p>
+          <p className="mt-5 text-sm font-medium uppercase tracking-wide text-lime">Tonight you&apos;re watching</p>
+          <h2 className="mt-2 font-serif text-4xl font-bold tracking-tight">{pick.title}</h2>
+          <p className="mt-1 text-zinc-400">{pick.year}</p>
+          <p className="mt-5 text-lg leading-relaxed text-zinc-300">{pick.reason}</p>
+          <WhereToWatch pick={pick} services={services} />
+        </div>
+      </article>
+      <button type="button" onClick={tryAgain} className={buttonClass}>
+        Try again
+      </button>
+    </div>
+  );
 
   return (
-    <section className="flex flex-col items-center gap-10">
-      <div className="flex flex-col items-center gap-5">
-        <div
-          role="radiogroup"
-          aria-label="How to pick"
-          className="flex rounded-full border border-black/10 bg-zinc-100 p-1 dark:border-white/10 dark:bg-zinc-900"
-        >
-          {MODES.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={mode === value}
-              onClick={() => switchMode(value)}
-              disabled={loading}
-              className={`rounded-full px-5 py-2 text-sm font-medium transition disabled:cursor-not-allowed ${
-                mode === value
-                  ? "bg-white text-foreground shadow-sm dark:bg-zinc-700"
-                  : "text-zinc-500 hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <ServicePicker services={services} onChange={changeServices} disabled={loading} />
-      </div>
+    <main className="relative flex min-h-dvh flex-col items-center bg-ink px-6 py-12 text-paper">
+      {/* Stippled starburst behind everything, pinned to the window while the page scrolls. */}
+      <GrainBurst className="fixed inset-0 size-full opacity-25" />
 
-      <div className="flex gap-4" aria-label="Your picks">
-        {Array.from({ length: PICK_COUNT }, (_, i) => {
-          const emoji = selected[i];
-          const spinning = loading && i >= reelsStopped;
-          const justStopped = loading && !spinning;
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => emoji && toggle(emoji)}
-              disabled={!emoji || loading || mode === "auto"}
-              aria-label={emoji ? `Remove ${labelFor(emoji)}` : `Empty slot ${i + 1}`}
-              className={`relative flex size-20 items-center justify-center overflow-hidden rounded-3xl text-5xl transition sm:size-24 sm:text-6xl ${
-                emoji
-                  ? "bg-amber-100 shadow-inner hover:bg-amber-200 dark:bg-amber-400/20 dark:hover:bg-amber-400/30"
-                  : "border-2 border-dashed border-black/15 dark:border-white/20"
-              }`}
-            >
-              {spinning ? (
-                <Reel emoji={emoji} index={i} />
-              ) : (
-                emoji ? (
-                  <span
-                    key={justStopped ? "stopped" : "picked"}
-                    className={
-                      justStopped
-                        ? "animate-[reel-stop_450ms_cubic-bezier(0.3,1.6,0.5,1)]"
-                        : "animate-[pop_200ms_ease-out]"
-                    }
-                  >
-                    {emoji}
-                  </span>
-                ) : (
-                  mode === "auto" && <span className="text-4xl text-zinc-400 sm:text-5xl">?</span>
-                )
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* Centered stage, per the Figma frame: title, slots and button 56px apart. */}
+      <div className="relative my-auto flex w-full flex-col items-center gap-14 py-8">
+        <h1 className="text-center font-serif text-4xl leading-none font-bold text-lime sm:text-6xl lg:text-7xl">
+          Roll for Movie
+        </h1>
 
-      <button
-        type="button"
-        onClick={() => pickMovie(mode === "auto" ? randomEmojis() : selected)}
-        disabled={loading || (mode === "manual" && !full)}
-        className="self-center rounded-full bg-foreground px-8 py-3 font-medium text-background transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        {loading ? "🎬 Picking…" : mode === "auto" ? "🎲 Roll for me" : "🎬 Pick my movie"}
-      </button>
-
-      {error && (
-        <p role="alert" className="text-center text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-
-      {mode === "manual" && (
-        <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-black/10 bg-zinc-50 dark:border-white/10 dark:bg-zinc-900">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-zinc-50 dark:from-zinc-900" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-10 bg-gradient-to-t from-zinc-50 dark:from-zinc-900" />
-          <div className="flex max-h-72 flex-wrap items-center justify-center overflow-y-auto overscroll-contain px-4 py-6 sm:max-h-80">
-            {VIBES.map(({ emoji, label }, i) => {
-              const active = selected.includes(emoji);
-              const locked = (full && !active) || loading;
-              return (
+        {/* Settings: how to pick and which services you have. */}
+        {!result && (
+          <div className="flex w-full max-w-3xl flex-col items-center gap-5">
+            <div role="radiogroup" aria-label="How to pick" className="flex rounded-lg border border-white/10 bg-white/5 p-1">
+              {MODES.map(({ value, label }) => (
                 <button
-                  key={emoji}
+                  key={value}
                   type="button"
-                  onClick={() => toggle(emoji)}
-                  disabled={locked}
-                  aria-pressed={active}
-                  aria-label={label}
-                  title={label}
-                  style={{
-                    rotate: `${TILTS[i % TILTS.length]}deg`,
-                    translate: `0 ${LIFTS[i % LIFTS.length]}px`,
-                    marginInline: GAPS[i % GAPS.length],
-                  }}
-                  className={`p-1 text-4xl transition duration-200 sm:text-5xl ${
-                    active
-                      ? "scale-50 opacity-20"
-                      : "hover:scale-125 active:scale-95"
-                  } disabled:cursor-not-allowed disabled:opacity-20 disabled:hover:scale-100`}
+                  role="radio"
+                  aria-checked={mode === value}
+                  onClick={() => switchMode(value)}
+                  disabled={loading}
+                  className={`rounded-md px-4 py-2 text-sm transition disabled:cursor-not-allowed ${
+                    mode === value ? "bg-lime text-ink" : "text-zinc-400 hover:text-paper"
+                  }`}
                 >
-                  <span style={{ fontSize: `${SIZES[i % SIZES.length]}em` }}>{emoji}</span>
+                  {label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+            <ServicePicker services={services} onChange={changeServices} disabled={loading} />
           </div>
-        </div>
-      )}
-    </section>
+        )}
+        {result ?? (
+          <>
+            {slots}
+            <div className="flex flex-col items-center gap-4">
+              <button
+                type="button"
+                onClick={() => pickMovie(mode === "auto" ? randomEmojis() : selected)}
+                disabled={loading || (mode === "manual" && !full)}
+                className={buttonClass}
+              >
+                {loading ? "Picking…" : mode === "auto" ? "Roll for movie" : "Pick my movie"}
+              </button>
+              {error && (
+                <p role="alert" className="text-center text-sm text-red-400">
+                  {error}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {!result && mode === "manual" && (
+          <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+            <div className="scroll-fade flex max-h-72 flex-wrap items-center justify-center overflow-y-auto overscroll-contain px-4 py-6 sm:max-h-80">
+              {VIBES.map(({ emoji, label }, i) => {
+                const active = selected.includes(emoji);
+                const locked = (full && !active) || loading;
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => toggle(emoji)}
+                    disabled={locked}
+                    aria-pressed={active}
+                    aria-label={label}
+                    title={label}
+                    style={{
+                      rotate: `${TILTS[i % TILTS.length]}deg`,
+                      translate: `0 ${LIFTS[i % LIFTS.length]}px`,
+                      marginInline: GAPS[i % GAPS.length],
+                    }}
+                    className={`p-1 text-4xl transition duration-200 sm:text-5xl ${
+                      active ? "scale-50 opacity-20" : "hover:scale-125 active:scale-95"
+                    } disabled:cursor-not-allowed disabled:opacity-20 disabled:hover:scale-100`}
+                  >
+                    <span style={{ fontSize: `${SIZES[i % SIZES.length]}em` }}>{emoji}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <footer className="relative max-w-3xl pt-12 text-center text-xs text-zinc-500">{footer}</footer>
+    </main>
   );
 }

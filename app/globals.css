@@ -1,22 +1,28 @@
 @import "tailwindcss";
 
+/* Palette from the Figma "Landing page" frame. One theme in both light and dark mode. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #111309; /* whole page is the dark stage */
+  --foreground: #f2f4ea;
+  --ink: #111309; /* stage background */
+  --lime: #e5fe93; /* title, primary button, highlights */
+  --paper: #f2f4ea; /* body text on ink */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-ink: var(--ink);
+  --color-lime: var(--lime);
+  --color-paper: var(--paper);
+  --font-sans: var(--font-google-sans-flex), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-newsreader), Georgia, serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Fade a scroll area's top and bottom edges into whatever is behind it. */
+.scroll-fade {
+  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 40px), transparent);
 }
 
 @keyframes pop {
@@ -58,5 +64,4 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
