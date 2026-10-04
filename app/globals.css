@@ -54,6 +54,16 @@
   }
 }
 
+@keyframes cup-shake {
+  0%,
+  100% {
+    transform: rotate(-8deg) translateY(-2px);
+  }
+  50% {
+    transform: rotate(8deg) translateY(2px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-"] {
     animation-duration: 1ms !important;
