@@ -6,13 +6,18 @@ import { getMovieDetails, getStreamingCatalog } from "../../tmdb";
 
 const client = new Anthropic();
 
-const RequestSchema = z.object({
-  emojis: z
-    .array(z.enum(VIBES.map((v) => v.emoji)))
-    .length(PICK_COUNT)
-    .refine((list) => new Set(list).size === list.length, "Emojis must be distinct"),
-  services: z.array(z.enum(SERVICES.map((s) => s.key))).default([]),
-});
+// A pick is either exactly three emojis or a short description in the user's own words.
+const RequestSchema = z
+  .object({
+    emojis: z
+      .array(z.enum(VIBES.map((v) => v.emoji)))
+      .length(PICK_COUNT)
+      .refine((list) => new Set(list).size === list.length, "Emojis must be distinct")
+      .optional(),
+    description: z.string().trim().min(2).max(300).optional(),
+    services: z.array(z.enum(SERVICES.map((s) => s.key))).default([]),
+  })
+  .refine((body) => !!body.emojis !== !!body.description, "Send either emojis or a description");
 
 const CandidatesSchema = z.object({
   candidates: z.array(
@@ -30,8 +35,8 @@ type Film = { title: string; year: number };
 const filmKey = (f: Film) => `${f.title.toLowerCase()}|${f.year}`;
 
 /** Ask Claude for ranked candidates; when a catalog is given, it must choose from that list. */
-async function suggestMovies(vibes: string, catalog: Film[] | null): Promise<Candidate[]> {
-  let content = `My picks: ${vibes}`;
+async function suggestMovies(ask: string, catalog: Film[] | null): Promise<Candidate[]> {
+  let content = ask;
   if (catalog) {
     content +=
       `\n\nChoose only from these films, which are streaming on my services right now:\n` +
@@ -45,10 +50,11 @@ async function suggestMovies(vibes: string, catalog: Film[] | null): Promise<Can
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     system:
-      "You recommend real, released feature films that match the moods a user picks as emojis. " +
+      "You recommend real, released feature films that match the mood a user gives you, either as emojis " +
+      "or described in their own words. " +
       "Return 3 different candidates, best match first. When the user supplies a list, copy the title " +
       "exactly as listed (without the year) and put the year in the year field. Prefer well-known films. For each, keep the reason to one or two " +
-      "friendly sentences that connect the film to each of the user's emojis.",
+      "friendly sentences that connect the film to each of the user's emojis, or to what they described.",
     messages: [{ role: "user", content }],
   });
 
@@ -69,15 +75,20 @@ const lookUp = (f: Film): Promise<MovieDetails> =>
 export async function POST(request: Request) {
   const body = RequestSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
-    const servicesInvalid = body.error.issues.some((issue) => issue.path[0] === "services");
-    return Response.json(
-      { error: servicesInvalid ? "Unknown streaming service." : `Pick exactly ${PICK_COUNT} emojis.` },
-      { status: 400 },
-    );
+    const field = body.error.issues[0]?.path[0];
+    const error =
+      field === "services"
+        ? "Unknown streaming service."
+        : field === "description"
+          ? "Describe your movie in a few words (up to 300 characters)."
+          : `Pick exactly ${PICK_COUNT} emojis, or describe your movie.`;
+    return Response.json({ error }, { status: 400 });
   }
 
-  const { emojis, services } = body.data;
-  const vibes = emojis.map((emoji) => `${emoji} (${VIBES.find((v) => v.emoji === emoji)!.label})`).join(", ");
+  const { emojis, description, services } = body.data;
+  const ask = emojis
+    ? `My picks: ${emojis.map((emoji) => `${emoji} (${VIBES.find((v) => v.emoji === emoji)!.label})`).join(", ")}`
+    : `What I'm in the mood for: ${description}`;
   const myProviderIds = providerIdsFor(services);
 
   try {
@@ -89,7 +100,7 @@ export async function POST(request: Request) {
           })
         : [];
 
-    const candidates = await suggestMovies(vibes, catalog.length > 0 ? catalog : null);
+    const candidates = await suggestMovies(ask, catalog.length > 0 ? catalog : null);
     if (candidates.length === 0) {
       return Response.json({ error: "Couldn't pick a movie for that combo. Try again." }, { status: 502 });
     }
