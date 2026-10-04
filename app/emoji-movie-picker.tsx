@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import DiceRoll from "./dice-roll";
 import GrainBurst from "./grain-burst";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -181,11 +182,12 @@ function ServicePicker({
   );
 }
 
-type Mode = "auto" | "manual";
+type Mode = "auto" | "manual" | "roll";
 
 const MODES: { value: Mode; label: string }[] = [
   { value: "auto", label: "Pick for me" },
   { value: "manual", label: "Pick Myself" },
+  { value: "roll", label: "Roll" },
 ];
 
 function randomEmojis() {
@@ -248,7 +250,8 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
     setError(null);
   }
 
-  async function pickMovie(emojis: string[]) {
+  /** `reels: false` skips the slot-machine spin (Roll mode, where the dice already did the rolling). */
+  async function pickMovie(emojis: string[], { reels = true } = {}) {
     setSelected(emojis);
     setLoading(true);
     setReelsStopped(0);
@@ -265,14 +268,16 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
           if (!res.ok) throw new Error(body.error ?? "Something went wrong.");
           return body as MoviePick;
         }),
-        wait(MIN_SPIN_MS),
+        wait(reels ? MIN_SPIN_MS : 0),
       ]);
-      // Stop the reels one at a time, left to right, then reveal the movie.
-      for (let i = 1; i <= PICK_COUNT; i++) {
-        setReelsStopped(i);
+      if (reels) {
+        // Stop the reels one at a time, left to right, then reveal the movie.
+        for (let i = 1; i <= PICK_COUNT; i++) {
+          setReelsStopped(i);
+          await wait(REEL_STOP_GAP_MS);
+        }
         await wait(REEL_STOP_GAP_MS);
       }
-      await wait(REEL_STOP_GAP_MS);
       setPick(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -298,7 +303,7 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
             key={i}
             type="button"
             onClick={() => emoji && toggle(emoji)}
-            disabled={!emoji || loading || mode === "auto"}
+            disabled={!emoji || loading || mode !== "manual"}
             aria-label={emoji ? `Remove ${labelFor(emoji)}` : `Empty slot ${i + 1}`}
             className="relative flex size-[88px] items-center justify-center overflow-hidden rounded-lg bg-white/[0.06] text-5xl shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] backdrop-blur-md transition enabled:hover:bg-white/10 sm:size-[150px] sm:text-7xl"
           >
@@ -388,16 +393,28 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
         )}
         {result ?? (
           <>
-            {slots}
+            {/* Roll mode has no slots at all: the dice on the table are the roll. */}
+            {mode === "roll" ? (
+              <DiceRoll
+                pickEmojis={randomEmojis}
+                onRolled={(emojis) => pickMovie(emojis, { reels: false })}
+                disabled={loading}
+              />
+            ) : (
+              slots
+            )}
             <div className="flex flex-col items-center gap-4">
-              <button
-                type="button"
-                onClick={() => pickMovie(mode === "auto" ? randomEmojis() : selected)}
-                disabled={loading || (mode === "manual" && !full)}
-                className={buttonClass}
-              >
-                {loading ? "Picking…" : mode === "auto" ? "Roll for movie" : "Pick my movie"}
-              </button>
+              {/* In Roll mode the cup is the control, so there's no button. */}
+              {mode !== "roll" && (
+                <button
+                  type="button"
+                  onClick={() => pickMovie(mode === "auto" ? randomEmojis() : selected)}
+                  disabled={loading || (mode === "manual" && !full)}
+                  className={buttonClass}
+                >
+                  {loading ? "Picking…" : mode === "auto" ? "Roll for movie" : "Pick my movie"}
+                </button>
+              )}
               {error && (
                 <p role="alert" className="text-center text-sm text-red-400">
                   {error}
