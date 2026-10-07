@@ -13,9 +13,10 @@ type Phase = "idle" | "holding" | "tumbling" | "done";
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
-const LIME = "#e5fe93";
-const INK = "#111309";
-const STRIPE_DARK = "#1c2010";
+// Brand tokens, so the bucket follows the active brand. SVG presentation attributes don't resolve var(), so these go in `style`.
+const LIME = "var(--lime)";
+const INK = "var(--ink)";
+const STRIPE_DARK = "var(--bucket-stripe)";
 const KERNEL = "#f2f4ea";
 
 // Popcorn heaped above the rim: [cx, cy, r].
@@ -39,11 +40,11 @@ function PopcornBucket() {
         <polygon
           key={i}
           points={`${x},26 ${STRIPE_TOP[i + 1]},26 ${STRIPE_BOTTOM[i + 1]},100 ${STRIPE_BOTTOM[i]},100`}
-          fill={i % 2 === 0 ? LIME : STRIPE_DARK}
+          style={{ fill: i % 2 === 0 ? LIME : STRIPE_DARK }}
         />
       ))}
-      <path d="M10 26 L78 26 L68 100 L20 100 Z" fill="none" stroke={LIME} strokeWidth="2" strokeLinejoin="round" />
-      <rect x="6" y="21" width="76" height="9" rx="3" fill={LIME} stroke={INK} strokeWidth="1.5" />
+      <path d="M10 26 L78 26 L68 100 L20 100 Z" fill="none" style={{ stroke: LIME }} strokeWidth="2" strokeLinejoin="round" />
+      <rect x="6" y="21" width="76" height="9" rx="3" style={{ fill: LIME, stroke: INK }} strokeWidth="1.5" />
     </svg>
   );
 }
@@ -303,7 +304,7 @@ export default function DiceRoll({
     <div className="flex w-full max-w-4xl flex-col items-center gap-4">
       <div
         ref={tableRef}
-        className="relative h-72 w-full overflow-hidden rounded-2xl bg-white/[0.04] sm:h-80"
+        className="relative h-72 w-full overflow-hidden rounded-2xl bg-veil/[0.04] sm:h-80"
       >
         {dice.map((emoji, i) => (
           <div
@@ -312,7 +313,7 @@ export default function DiceRoll({
               diceRefs.current[i] = el;
             }}
             aria-hidden
-            className="absolute top-0 left-0 flex items-center justify-center rounded-xl bg-white/10 text-4xl shadow-lg shadow-black/40 backdrop-blur-md"
+            className="absolute top-0 left-0 flex items-center justify-center rounded-xl bg-veil/10 text-4xl shadow-lg shadow-black/40 backdrop-blur-md"
             style={{ width: DIE, height: DIE, transform: "translate(-200px, -200px)" }}
           >
             {emoji}
@@ -341,7 +342,7 @@ export default function DiceRoll({
           </div>
         </button>
       </div>
-      <p className="text-sm text-zinc-400" aria-live="polite">
+      <p className="text-sm text-muted-foreground" aria-live="polite">
         {hint}
       </p>
     </div>

@@ -200,7 +200,7 @@ export default function EmojiMagnetField({
                   }}
                 >
                   {/* The hover and the lean live on this inner skin, so their CSS transform never fights the spring. */}
-                  <span className="mag-skin flex size-full items-center justify-center rounded-full bg-white/[0.06] text-[28px] leading-none group-data-[on]:bg-lime group-data-[on]:shadow-[0_0_0_4px_rgb(229_254_147/0.18)]">
+                  <span className="mag-skin flex size-full items-center justify-center rounded-full bg-veil/[0.06] text-[28px] leading-none group-data-[on]:bg-lime group-data-[on]:shadow-[0_0_0_4px_color-mix(in_oklab,var(--lime)_18%,transparent)]">
                     {emoji}
                   </span>
                 </motion.button>
