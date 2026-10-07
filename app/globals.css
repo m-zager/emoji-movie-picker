@@ -2,12 +2,24 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Palette from the Figma "Landing page" frame. One dark theme in both light and dark mode. */
+@custom-variant brand-02 (&:where([data-brand="02"], [data-brand="02"] *));
+
+/* Brand 01, the palette from the Figma "Landing page" frame. One dark theme in both light and dark mode.
+   The role names stay the same in every brand: ink is the stage, lime the accent, paper the text, olive the container. */
 :root {
   --ink: #111309; /* stage background */
   --lime: #e5fe93; /* title, primary button, highlights */
   --paper: #f2f4ea; /* body text on ink */
   --olive: #282d13; /* the main container and the selected mode */
+  --subtle: #d4d4d8; /* secondary body text: the reason, the quoted prompt */
+  --faint: #71717a; /* footer */
+  --veil: #ffffff; /* tints over the stage, used at low opacity (bg-veil/5) */
+  --bucket-stripe: #1c2010; /* the popcorn bucket's dark stripes */
+
+  --brand-sans: var(--font-google-sans-flex);
+  --brand-display: var(--font-newsreader), Georgia, serif;
+  --display-weight: 700;
+  --display-tracking: 0;
 
   /* shadcn/ui tokens, mapped to the brand so its components match out of the box. */
   --background: var(--ink);
@@ -18,7 +30,7 @@
   --popover-foreground: var(--paper);
   --primary: var(--lime);
   --primary-foreground: var(--ink);
-  --secondary: #24281a;
+  --secondary: var(--ink); /* the header's inset pills, e.g. Try again */
   --secondary-foreground: var(--paper);
   --muted: #24281a;
   --muted-foreground: #a1a1aa;
@@ -31,6 +43,40 @@
   --radius: 0.5rem; /* 8px, the Figma button and slot radius */
 }
 
+/* Brand 02, after elevenlabs.io: a warm off-white page, black type and actions, warm grays, light display type. */
+[data-brand="02"] {
+  --ink: #fdfcfc;
+  --lime: #000000;
+  --paper: #000000;
+  --olive: #f3f1ee;
+  --subtle: #57524b;
+  --faint: #8a847c;
+  --veil: #000000;
+  --bucket-stripe: #ffffff;
+
+  --brand-sans: var(--font-inter);
+  --brand-display: var(--font-geist), system-ui, sans-serif;
+  --display-weight: 300;
+  --display-tracking: -0.02em;
+
+  --card: #ffffff;
+  --popover: #ffffff;
+  --secondary: #ffffff;
+  --muted: #f3f1ee;
+  --muted-foreground: #777169;
+  --accent: #ebe8e4;
+  --destructive: #dc2626;
+  --border: rgb(0 0 0 / 0.08);
+  --input: rgb(0 0 0 / 0.12);
+}
+
+/* The page title and movie title: Newsreader Bold in Brand 01, light Geist in Brand 02. */
+@utility font-display {
+  font-family: var(--brand-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -38,9 +84,12 @@
   --color-lime: var(--lime);
   --color-paper: var(--paper);
   --color-olive: var(--olive);
-  --font-sans: var(--font-google-sans-flex), system-ui, sans-serif;
+  --color-subtle: var(--subtle);
+  --color-faint: var(--faint);
+  --color-veil: var(--veil);
+  --font-sans: var(--brand-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-newsreader), Georgia, serif;
+  --font-serif: var(--brand-display);
   --font-heading: var(--font-serif);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -98,6 +147,17 @@
   }
   to {
     transform: translateY(0);
+  }
+}
+
+/* Brand 02's empty-slot orbs: a slow swell, like a sphere catching its breath. */
+@keyframes orb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
   }
 }
 

@@ -1,16 +1,17 @@
 "use client";
 
 import Image from "next/image";
+import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DiceRoll from "./dice-roll";
 import EmojiMagnetField from "./emoji-magnet-field";
 import GrainBurst from "./grain-burst";
 import PosterTilt from "./poster-tilt";
+import ServiceMenu from "./service-menu";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   PICK_COUNT,
-  SERVICE_LOGO_BASE,
   SERVICES,
   VIBES,
   providerIdsFor,
@@ -55,6 +56,23 @@ function Reel({ emoji, index }: { emoji: string; index: number }) {
   );
 }
 
+/** Brand 02's empty slot: a soft gradient sphere, after the voice orbs on elevenlabs.io. One color per slot. */
+const SLOT_ORBS = [
+  "radial-gradient(circle at 32% 28%, #ffe4c8 0%, #ff9a5c 38%, #ec5524 70%, #b8300f 100%)",
+  "radial-gradient(circle at 32% 28%, #fde8ff 0%, #dba6ff 34%, #9b8cff 64%, #5d7dff 100%)",
+  "radial-gradient(circle at 32% 28%, #f6f8f1 0%, #cfdcc6 38%, #98af93 72%, #6c8669 100%)",
+];
+
+function SlotOrb({ index }: { index: number }) {
+  return (
+    <span
+      aria-hidden
+      className="hidden size-[58%] animate-[orb-breathe_4s_ease-in-out_infinite] rounded-full shadow-[inset_-6px_-10px_18px_rgb(0_0_0/0.14),0_10px_24px_-10px_rgb(0_0_0/0.25)] brand-02:block"
+      style={{ background: SLOT_ORBS[index % SLOT_ORBS.length], animationDelay: `${index * -1.3}s` }}
+    />
+  );
+}
+
 function ProviderRow({
   label,
   providers,
@@ -69,7 +87,7 @@ function ProviderRow({
   if (providers.length === 0) return null;
   return (
     <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</p>
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <ul className="flex flex-wrap justify-center gap-2 sm:justify-start">
         {providers.map((p) => (
           <li key={p.name}>
@@ -95,7 +113,7 @@ function WhereToWatch({ pick, services }: { pick: MoviePick; services: ServiceKe
   const { watch, onYourServices } = pick;
   const mine = providerIdsFor(services);
   const notOnYours = onYourServices === false && (
-    <p className="mt-6 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
+    <p className="mt-6 rounded-lg border border-border bg-veil/5 px-4 py-3 text-sm text-subtle">
       ⚠️ Couldn&apos;t find a match streaming on your services, so here&apos;s the best overall pick.
     </p>
   );
@@ -103,7 +121,7 @@ function WhereToWatch({ pick, services }: { pick: MoviePick; services: ServiceKe
     return (
       <>
         {notOnYours}
-        <p className="mt-6 text-sm text-zinc-400">No streaming info found for the US.</p>
+        <p className="mt-6 text-sm text-muted-foreground">No streaming info found for the US.</p>
       </>
     );
   }
@@ -112,7 +130,7 @@ function WhereToWatch({ pick, services }: { pick: MoviePick; services: ServiceKe
       {notOnYours}
       <ProviderRow label="Stream" providers={watch.stream} link={watch.link} mine={mine} />
       <ProviderRow label="Rent or buy" providers={watch.rentOrBuy} link={watch.link} mine={mine} />
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs text-muted-foreground">
         Streaming data by{" "}
         <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" className="underline">
           JustWatch
@@ -127,67 +145,15 @@ function WhereToWatch({ pick, services }: { pick: MoviePick; services: ServiceKe
   );
 }
 
-function ServicePicker({
-  services,
-  onChange,
-  disabled,
-}: {
-  services: ServiceKey[];
-  onChange: (update: (prev: ServiceKey[]) => ServiceKey[]) => void;
-  disabled: boolean;
-}) {
-  function toggleService(key: ServiceKey) {
-    onChange((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
-  }
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <ul className="flex flex-wrap justify-center gap-2" aria-label="My streaming services">
-        {SERVICES.map(({ key, name, logo }) => {
-          const on = services.includes(key);
-          return (
-            <li key={key}>
-              <button
-                type="button"
-                onClick={() => toggleService(key)}
-                disabled={disabled}
-                aria-pressed={on}
-                title={name}
-                className={`block rounded-lg transition disabled:cursor-not-allowed ${
-                  on
-                    ? "ring-2 ring-lime ring-offset-2 ring-offset-ink"
-                    : "opacity-40 grayscale hover:opacity-80 hover:grayscale-0"
-                }`}
-              >
-                <Image src={`${SERVICE_LOGO_BASE}${logo}`} alt={name} width={36} height={36} className="rounded-lg" />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="text-center text-xs text-zinc-400">
-        {services.length === 0 ? (
-          "Tap the streaming services you have, or leave them all off for any movie."
-        ) : (
-          <>
-            Only picking movies streaming on your {services.length === 1 ? "service" : `${services.length} services`}.{" "}
-            <button type="button" onClick={() => onChange(() => [])} disabled={disabled} className="underline">
-              Clear
-            </button>
-          </>
-        )}
-      </p>
-    </div>
-  );
-}
-
 type Mode = "describe" | "manual" | "auto" | "roll";
 
-/** The four ways to pick, in the order of the Figma switcher. `label` heads the container and names the button. */
-const MODES: { value: Mode; icon: string; label: string }[] = [
-  { value: "describe", icon: "✍️", label: "Describe your movie" },
-  { value: "manual", icon: "👆", label: "Pick three emojis" },
-  { value: "auto", icon: "🎰", label: "Spin the slots" },
-  { value: "roll", icon: "🎲", label: "Shake the popcorn" },
+/** The four ways to pick, in the order of the Figma switcher. `label` heads the container and names the button;
+    `tab` is the short caption Brand 02 shows beside the emoji on wide screens. */
+const MODES: { value: Mode; icon: string; label: string; tab: string }[] = [
+  { value: "describe", icon: "✍️", label: "Describe your movie", tab: "Describe" },
+  { value: "manual", icon: "👆", label: "Pick three emojis", tab: "Pick three" },
+  { value: "auto", icon: "🎰", label: "Spin the slots", tab: "Spin" },
+  { value: "roll", icon: "🎲", label: "Shake the popcorn", tab: "Shake" },
 ];
 
 /** A spring for the container growing and shrinking: quick, with no overshoot to wobble the page. */
@@ -216,11 +182,16 @@ function useHeight<T extends HTMLElement>() {
   return [ref, height] as const;
 }
 
-/** The Figma switcher: four emoji buttons on an inset dark track, with the selection sliding between them. */
+/** The Figma switcher: four emoji buttons on an inset dark track, with the selection sliding between them.
+    Brand 02 turns it into ElevenLabs-style tabs: a gray track, a raised white selection, and captions from lg up. */
 function ModeSwitch({ mode, onChange, disabled }: { mode: Mode; onChange: (m: Mode) => void; disabled: boolean }) {
   return (
-    <div role="radiogroup" aria-label="How to pick" className="relative flex shrink-0 items-center rounded-full bg-ink p-1">
-      {MODES.map(({ value, icon, label }) => (
+    <div
+      role="radiogroup"
+      aria-label="How to pick"
+      className="relative flex shrink-0 items-center rounded-full bg-ink p-1 brand-02:bg-veil/[0.06]"
+    >
+      {MODES.map(({ value, icon, label, tab }) => (
         <button
           key={value}
           type="button"
@@ -230,10 +201,21 @@ function ModeSwitch({ mode, onChange, disabled }: { mode: Mode; onChange: (m: Mo
           title={label}
           disabled={disabled}
           onClick={() => onChange(value)}
-          className="relative grid size-9 place-items-center rounded-full text-base transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          className="relative flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full text-base transition-opacity disabled:cursor-not-allowed disabled:opacity-50 brand-02:lg:px-3"
         >
-          {mode === value && <motion.span layoutId="mode-selected" transition={GROW} className="absolute inset-0 rounded-full bg-olive" />}
+          {mode === value && (
+            <motion.span
+              layoutId="mode-selected"
+              transition={GROW}
+              className="absolute inset-0 rounded-full bg-olive brand-02:bg-ink brand-02:shadow-sm"
+            />
+          )}
           <span className="relative">{icon}</span>
+          <span
+            className={`relative hidden text-sm brand-02:lg:inline ${mode === value ? "text-paper" : "text-muted-foreground"}`}
+          >
+            {tab}
+          </span>
         </button>
       ))}
     </div>
@@ -354,7 +336,7 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
             onClick={() => emoji && toggle(emoji)}
             disabled={!emoji || loading || mode !== "manual"}
             aria-label={emoji ? `Remove ${labelFor(emoji)}` : `Empty slot ${i + 1}`}
-            className="relative flex size-[88px] items-center justify-center overflow-hidden rounded-lg bg-ink text-5xl sm:size-[150px] sm:text-7xl"
+            className="relative flex size-[88px] items-center justify-center overflow-hidden rounded-lg bg-ink text-5xl sm:size-[150px] sm:text-7xl brand-02:rounded-2xl brand-02:border brand-02:border-border brand-02:shadow-sm"
           >
             {spinning ? (
               <Reel emoji={emoji} index={i} />
@@ -369,7 +351,9 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
               >
                 {emoji}
               </span>
-            ) : null}
+            ) : (
+              <SlotOrb index={i} />
+            )}
           </button>
         );
       })}
@@ -377,7 +361,7 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
   );
 
   const errorNote = error && (
-    <p role="alert" className="text-center text-sm text-red-400">
+    <p role="alert" className="text-center text-sm text-destructive">
       {error}
     </p>
   );
@@ -392,24 +376,20 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
           {pick.posterUrl && <PosterTilt src={pick.posterUrl} alt={`${pick.title} poster`} />}
           <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
             {mode === "describe" ? (
-              <p className="text-lg text-zinc-300 italic">&ldquo;{query.trim()}&rdquo;</p>
+              <p className="text-lg text-subtle italic">&ldquo;{query.trim()}&rdquo;</p>
             ) : (
               <p className="text-3xl tracking-widest">{selected.join(" ")}</p>
             )}
-            <p className="mt-5 text-sm font-medium uppercase tracking-wide text-lime">Tonight you&apos;re watching</p>
-            <h2 className="mt-2 font-serif text-4xl font-bold tracking-tight">{pick.title}</h2>
-            <p className="mt-1 text-zinc-400">{pick.year}</p>
-            <p className="mt-5 text-lg leading-relaxed text-zinc-300">{pick.reason}</p>
+            <h2 className="mt-5 font-display text-4xl tracking-tight">{pick.title}</h2>
+            <p className="mt-1 text-muted-foreground">{pick.year}</p>
+            <p className="mt-5 text-lg leading-relaxed text-subtle">{pick.reason}</p>
             <WhereToWatch pick={pick} services={services} />
           </div>
         </article>
-        <Button size="xl" onClick={tryAgain}>
-          Try again
-        </Button>
       </>
     );
   } else if (mode === "describe") {
-    if (loading) body = <p className="text-zinc-400">Finding your movie…</p>;
+    if (loading) body = <p className="text-muted-foreground">Finding your movie…</p>;
     else if (error) body = errorNote;
   } else if (mode === "roll") {
     // Roll mode has no slots at all: the dice on the table are the roll, and the bucket is the control.
@@ -472,33 +452,54 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
         })}
       </div>
       {full && !pick && (
+        // While the pick loads, the button itself becomes the spinner, at full strength rather than faded.
         <button
           type="button"
           disabled={loading}
+          aria-busy={loading}
           onClick={() => pickMovie({ emojis: selected })}
-          className="flex h-9 shrink-0 items-center gap-2 rounded-full bg-lime pr-3 pl-4 text-sm text-ink transition hover:bg-lime/80 disabled:opacity-50"
+          className="flex h-9 shrink-0 items-center gap-2 rounded-full bg-lime pr-3 pl-4 text-sm text-ink transition enabled:hover:bg-lime/80 disabled:cursor-progress"
         >
-          Pick my movie
-          <span aria-hidden>→</span>
+          {loading ? (
+            <>
+              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+              Picking…
+            </>
+          ) : (
+            <>
+              Pick my movie
+              <span aria-hidden>→</span>
+            </>
+          )}
         </button>
       )}
-      {loading && <span className="truncate text-sm text-zinc-400">Picking…</span>}
     </div>
   );
 
   return (
-    <main className="relative flex min-h-dvh flex-col items-center bg-ink px-4 py-12 text-paper sm:px-6">
-      {/* Stippled starburst behind everything, pinned to the window while the page scrolls. */}
-      <GrainBurst className="fixed inset-0 size-full opacity-25" />
+    // pb-20 keeps the footer clear of the fixed brand switch in the bottom-left corner.
+    <main className="relative flex min-h-dvh flex-col items-center bg-ink px-4 pt-12 pb-20 text-paper sm:px-6">
+      {/* Brand 01: stippled starburst behind everything, pinned to the window while the page scrolls. */}
+      <GrainBurst className="fixed inset-0 size-full opacity-25 brand-02:hidden" />
+      {/* Brand 02: soft gradient orbs, after the spheres on elevenlabs.io. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 hidden overflow-hidden brand-02:block">
+        <div className="absolute -top-40 -right-32 size-[520px] rounded-full bg-[radial-gradient(circle_at_35%_35%,#ffd2a8,#ff7a3d_45%,#e8481c_75%)] opacity-35 blur-3xl" />
+        <div className="absolute -bottom-48 -left-40 size-[560px] rounded-full bg-[radial-gradient(circle_at_60%_40%,#f3c4ff,#a98bff_45%,#6aa8ff_80%)] opacity-30 blur-3xl" />
+      </div>
 
       {/* Equal flexible space above and below keeps the title and container centered, as in the Figma frame.
           (basis-0 rather than flex-1: a percentage basis in a min-height column counts its content first.) */}
       <div aria-hidden className="grow basis-0" />
 
       <div className="relative flex w-full flex-col items-center gap-6">
-        <h1 className="text-center font-serif text-4xl font-bold text-lime sm:text-[48px] sm:leading-[68px]">
+        <h1 className="text-center font-display text-4xl text-lime sm:text-[48px] sm:leading-[68px]">
           Roll for Movie
         </h1>
+
+        {/* Brand 02: the streaming filter sits between the title and the container, centered. */}
+        <div className="hidden justify-center brand-02:flex">
+          <ServiceMenu services={services} onChange={changeServices} disabled={loading} align="center" />
+        </div>
 
         {/* One container for every mode. It's the Figma pill on landing and springs open to fit each mode. */}
         <motion.section
@@ -506,46 +507,69 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
           // A pill while it's just the top row, opening to the Figma's 16px corners when it holds content.
           animate={{ borderRadius: body ? 16 : 31 }}
           transition={GROW}
-          className="w-full max-w-[900px] overflow-hidden border border-olive bg-olive py-2 pr-2 pl-4 transition-colors focus-within:border-lime/40"
+          // Focus tints the border. Brand 02 keeps the stroke only while typing in the describe input, not when a
+          // tab, emoji or the popcorn has focus.
+          className="w-full max-w-[900px] overflow-hidden border border-olive bg-olive py-2 pr-2 pl-4 transition-colors focus-within:border-lime/40 brand-02:[&:focus-within:not(:has(input:focus))]:border-olive"
         >
-          <div className="flex items-center justify-between gap-3">
-            {mode === "describe" ? (
-              <form
-                className="flex min-w-0 flex-1 items-center gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (query.trim() && !loading) {
-                    setPick(null);
-                    pickMovie({ description: query.trim() });
-                  }
-                }}
-              >
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  maxLength={300}
-                  disabled={loading}
-                  aria-label="Describe your movie"
-                  placeholder="Describe your movie"
-                  className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-white disabled:opacity-60"
-                />
-                {query.trim() && (
-                  <button
-                    type="submit"
-                    aria-label="Find my movie"
+          {/* The header row. When it runs out of room (a phone with three picks and Pick my movie, or with Try again),
+              the controls wrap onto their own line, right-aligned, instead of sliding over the buttons. The describe
+              input never forces a wrap: it has a zero flex basis and just narrows. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            {/* Left side: whatever this mode leads with, then Try again once a result is showing, so it sits
+                beside the picks rather than with the mode switch. With the picks tray or a result, the group sizes to
+                its content, so on a phone the controls wrap below instead of covering Pick my movie or Try again. */}
+            <div
+              className={`flex min-w-0 flex-1 items-center gap-2 ${pick || mode === "manual" ? "basis-auto" : "basis-0"}`}
+            >
+              {mode === "describe" ? (
+                <form
+                  className="flex min-w-0 flex-1 items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (query.trim() && !loading) {
+                      setPick(null);
+                      pickMovie({ description: query.trim() });
+                    }
+                  }}
+                >
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    maxLength={300}
                     disabled={loading}
-                    className="grid size-9 shrink-0 place-items-center rounded-full bg-lime text-ink transition hover:bg-lime/80 disabled:opacity-50"
-                  >
-                    →
-                  </button>
-                )}
-              </form>
-            ) : mode === "manual" ? (
-              tray
-            ) : (
-              <p className="truncate text-base text-white">{current.label}</p>
-            )}
-            <ModeSwitch mode={mode} onChange={switchMode} disabled={loading} />
+                    aria-label="Describe your movie"
+                    placeholder="Describe your movie"
+                    className="min-w-0 flex-1 bg-transparent text-base text-paper outline-none placeholder:text-paper disabled:opacity-60"
+                  />
+                  {query.trim() && (
+                    <button
+                      type="submit"
+                      aria-label="Find my movie"
+                      disabled={loading}
+                      className="grid size-9 shrink-0 place-items-center rounded-full bg-lime text-ink transition hover:bg-lime/80 disabled:opacity-50"
+                    >
+                      →
+                    </button>
+                  )}
+                </form>
+              ) : mode === "manual" ? (
+                tray
+              ) : (
+                <p className="truncate text-base text-paper">{current.label}</p>
+              )}
+              {pick && (
+                <Button variant="secondary" size="lg" className="shrink-0 px-4" onClick={tryAgain}>
+                  Try again
+                </Button>
+              )}
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {/* Brand 01 keeps the filter in the top row; Brand 02 shows it between the title and the container. */}
+              <div className="brand-02:hidden">
+                <ServiceMenu services={services} onChange={changeServices} disabled={loading} />
+              </div>
+              <ModeSwitch mode={mode} onChange={switchMode} disabled={loading} />
+            </div>
           </div>
 
           <motion.div initial={false} animate={{ height: body ? bodyHeight : 0 }} transition={GROW} className="overflow-hidden">
@@ -571,12 +595,8 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
         </motion.section>
       </div>
 
-      {/* Filters stay outside the container for now. */}
       <div className="relative flex w-full grow basis-0 flex-col items-center">
-        <div className="mt-6 w-full max-w-3xl">
-          <ServicePicker services={services} onChange={changeServices} disabled={loading} />
-        </div>
-        <footer className="mt-auto max-w-3xl pt-12 text-center text-xs text-zinc-500">{footer}</footer>
+        <footer className="mt-auto max-w-3xl pt-12 text-center text-xs text-faint">{footer}</footer>
       </div>
     </main>
   );
