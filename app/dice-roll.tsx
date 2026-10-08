@@ -1,8 +1,11 @@
 "use client";
 
+import { LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { WARM_ORB } from "./brand";
+import { useBrand } from "./use-brand";
 
-const DIE = 64; // die size in px
+const DIE = 48; // die diameter in px: the same 48px circle as the Pick three chips
 const R = DIE / 2;
 const CUP_W = 88;
 const CUP_H = 104;
@@ -46,6 +49,17 @@ function PopcornBucket() {
       <path d="M10 26 L78 26 L68 100 L20 100 Z" fill="none" style={{ stroke: LIME }} strokeWidth="2" strokeLinejoin="round" />
       <rect x="6" y="21" width="76" height="9" rx="3" style={{ fill: LIME, stroke: INK }} strokeWidth="1.5" />
     </svg>
+  );
+}
+
+/** Brand 02's shaker: a warm gradient orb, centered in the bucket's box so the dice spill from its edge. */
+function ShakeOrb() {
+  return (
+    <span
+      aria-hidden
+      className="mt-2 block size-[88px] animate-[orb-breathe_4s_ease-in-out_infinite] rounded-full shadow-[inset_-8px_-12px_22px_rgb(0_0_0/0.16),0_14px_30px_-12px_rgb(0_0_0/0.35)]"
+      style={{ background: WARM_ORB }}
+    />
   );
 }
 
@@ -104,7 +118,8 @@ function step(bodies: Body[], dt: number, width: number, height: number) {
 const isMoving = (bodies: Body[]) => bodies.some((b) => Math.hypot(b.vx, b.vy) > 10 || Math.abs(b.va) > 25);
 
 /**
- * A tabletop with a popcorn bucket: pick it up, shake it, let go, and three emoji dice tumble out.
+ * A tabletop with a popcorn bucket (a gradient orb in Brand 02): pick it up, shake it, let go, and three emoji
+ * dice tumble out.
  * When they settle, `onRolled` receives the three emojis.
  */
 export default function DiceRoll({
@@ -128,6 +143,8 @@ export default function DiceRoll({
   const [phase, setPhaseState] = useState<Phase>("idle");
   const [dice, setDice] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
+  const brand = useBrand();
+  const shaker = brand === "02" ? "orb" : "popcorn";
 
   function setPhase(next: Phase) {
     phaseRef.current = next;
@@ -220,7 +237,8 @@ export default function DiceRoll({
     }
     speed = Math.min(Math.max(speed, 600), 1800);
 
-    if (tipRef.current) tipRef.current.style.transform = `rotate(${(dir * 180) / Math.PI + 90}deg)`;
+    // The bucket tips toward the throw; the orb stays upright (a sphere's highlight shouldn't spin).
+    if (tipRef.current && brand !== "02") tipRef.current.style.transform = `rotate(${(dir * 180) / Math.PI + 90}deg)`;
     const mouth = {
       x: cup.current.x + Math.cos(dir) * (MOUTH_OFFSET + R),
       y: cup.current.y + Math.sin(dir) * (MOUTH_OFFSET + R),
@@ -294,10 +312,10 @@ export default function DiceRoll({
   }, [phase]);
 
   const hint = {
-    idle: "Pick up the popcorn, give it a shake, and let go.",
+    idle: `Pick up the ${shaker}, give it a shake, and let go.`,
     holding: "Shake it… now let go!",
     tumbling: "Rolling…",
-    done: disabled ? "Picking your movie…" : "Pick up the popcorn to roll again.",
+    done: disabled ? "Picking your movie…" : `Pick up the ${shaker} to roll again.`,
   }[phase];
 
   return (
@@ -307,23 +325,25 @@ export default function DiceRoll({
         className="relative h-72 w-full overflow-hidden rounded-2xl bg-veil/[0.04] sm:h-80"
       >
         {dice.map((emoji, i) => (
+          // Each die is a Pick three chip: a circle with the veil tint over the inset color, so it reads the same
+          // on the tinted table as on the emoji field.
           <div
             key={`${emoji}-${i}`}
             ref={(el) => {
               diceRefs.current[i] = el;
             }}
             aria-hidden
-            className="absolute top-0 left-0 flex items-center justify-center rounded-xl bg-veil/10 text-4xl shadow-lg shadow-black/40 backdrop-blur-md"
+            className="absolute top-0 left-0 overflow-hidden rounded-full bg-ink"
             style={{ width: DIE, height: DIE, transform: "translate(-200px, -200px)" }}
           >
-            {emoji}
+            <span className="flex size-full items-center justify-center bg-veil/[0.06] text-[28px] leading-none">{emoji}</span>
           </div>
         ))}
 
         <button
           ref={cupRef}
           type="button"
-          aria-label="Popcorn bucket. Press Enter to roll."
+          aria-label={brand === "02" ? "Gradient orb. Press Enter to roll." : "Popcorn bucket. Press Enter to roll."}
           disabled={disabled}
           onPointerDown={pickUp}
           onPointerMove={shake}
@@ -335,14 +355,24 @@ export default function DiceRoll({
           }`}
           style={{ width: CUP_W, height: CUP_H }}
         >
-          <div className={phase === "holding" ? "animate-[cup-shake_120ms_ease-in-out_infinite]" : ""}>
+          <div
+            className={
+              phase === "holding"
+                ? brand === "02"
+                  ? "animate-[orb-shake_140ms_ease-in-out_infinite]"
+                  : "animate-[cup-shake_120ms_ease-in-out_infinite]"
+                : ""
+            }
+          >
             <div ref={tipRef} className="transition-transform duration-300 ease-out">
-              <PopcornBucket />
+              {brand === "02" ? <ShakeOrb /> : <PopcornBucket />}
             </div>
           </div>
         </button>
       </div>
-      <p className="text-sm text-muted-foreground" aria-live="polite">
+      <p className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-live="polite">
+        {/* While the movie is being picked, a spinner like the Pick my movie button's. */}
+        {phase === "done" && disabled && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
         {hint}
       </p>
     </div>
