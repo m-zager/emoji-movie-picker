@@ -20,9 +20,14 @@ export type MoviePick = MovieDetails & {
   reason: string;
   /** null when no streaming services were selected. */
   onYourServices: boolean | null;
+  /** Picks this browser has left after this one. */
+  picksLeft: number;
 };
 
 export const PICK_COUNT = 3;
+
+/** How many movie picks each browser gets in total (enforced by the pick API, see usage.ts). */
+export const PICK_LIMIT = 5;
 
 export type ServiceKey = (typeof SERVICES)[number]["key"];
 

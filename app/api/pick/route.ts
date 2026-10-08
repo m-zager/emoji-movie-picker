@@ -1,8 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { PICK_COUNT, SERVICES, VIBES, providerIdsFor, type MovieDetails, type MoviePick } from "../../movies";
+import { PICK_COUNT, PICK_LIMIT, SERVICES, VIBES, providerIdsFor, type MovieDetails, type MoviePick } from "../../movies";
 import { getMovieDetails, getStreamingCatalog } from "../../tmdb";
+import { picksUsed, recordPick } from "../../usage";
 
 const client = new Anthropic();
 
@@ -85,6 +86,12 @@ export async function POST(request: Request) {
     return Response.json({ error }, { status: 400 });
   }
 
+  // Each browser gets PICK_LIMIT picks, checked before any call to Claude.
+  const used = await picksUsed();
+  if (used >= PICK_LIMIT) {
+    return Response.json({ error: `You've used all ${PICK_LIMIT} picks.`, limitReached: true }, { status: 429 });
+  }
+
   const { emojis, description, services } = body.data;
   const ask = emojis
     ? `My picks: ${emojis.map((emoji) => `${emoji} (${VIBES.find((v) => v.emoji === emoji)!.label})`).join(", ")}`
@@ -113,7 +120,9 @@ export async function POST(request: Request) {
     const onYourServices =
       services.length === 0 ? null : (details.watch?.stream.some((p) => myProviderIds.has(p.id)) ?? false);
 
-    return Response.json({ ...choice, ...details, onYourServices } satisfies MoviePick);
+    // Only a successful pick uses one up.
+    const picksLeft = await recordPick(used);
+    return Response.json({ ...choice, ...details, onYourServices, picksLeft } satisfies MoviePick);
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) {
       console.error("Anthropic auth failed - check ANTHROPIC_API_KEY in .env.local");

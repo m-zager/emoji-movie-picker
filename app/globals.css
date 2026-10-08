@@ -89,6 +89,7 @@
   --color-veil: var(--veil);
   --font-sans: var(--brand-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-portfolio: var(--font-montserrat), system-ui, sans-serif;
   --font-serif: var(--brand-display);
   --font-heading: var(--font-serif);
   --color-ring: var(--ring);

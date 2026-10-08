@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Google_Sans_Flex, Inter, Newsreader } from "next/font/google";
+import { Geist_Mono, Google_Sans_Flex, Inter, Montserrat, Newsreader } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,13 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+// The pick-limit card (limit-popover.tsx) is set in Montserrat, Medium and SemiBold only.
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
+  subsets: ["latin"],
+  weight: ["500", "600"],
+});
+
 export const metadata: Metadata = {
   title: "pick my movie",
   description: "Pick a few emojis, get a movie to watch.",
@@ -43,6 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         geistMono.variable,
         newsreader.variable,
         inter.variable,
+        montserrat.variable,
       )}
     >
       <body className="min-h-full flex flex-col">{children}</body>
