@@ -1,4 +1,3 @@
-import BrandSwitch from "./brand-switch";
 import EmojiMoviePicker from "./emoji-movie-picker";
 
 export default function Home() {
@@ -15,7 +14,6 @@ export default function Home() {
           </>
         }
       />
-      <BrandSwitch />
     </div>
   );
 }

@@ -55,7 +55,7 @@
   --bucket-stripe: #ffffff;
 
   --brand-sans: var(--font-inter);
-  --brand-display: var(--font-geist), system-ui, sans-serif;
+  --brand-display: var(--font-google-sans-flex), system-ui, sans-serif;
   --display-weight: 300;
   --display-tracking: -0.02em;
 
@@ -70,7 +70,7 @@
   --input: rgb(0 0 0 / 0.12);
 }
 
-/* The page title and movie title: Newsreader Bold in Brand 01, light Geist in Brand 02. */
+/* The page title (and Brand 01's movie title): Newsreader Bold in Brand 01, Google Sans Flex Light in Brand 02. */
 @utility font-display {
   font-family: var(--brand-display);
   font-weight: var(--display-weight);
@@ -150,6 +150,76 @@
   }
 }
 
+/* The mode switch's selection pill (ModeSwitch). Two phases: a quick stretch where the leading edge runs ahead
+   across both tabs, then a settle where the trailing edge catches up. Position and width use different overshoots
+   on purpose (1.28 vs 1.34): the pill arrives before its edges finish, which reads as give rather than a bounce. */
+.mode-pill[data-phase="stretch"] {
+  transition:
+    transform 190ms cubic-bezier(0.3, 0, 0.2, 1),
+    width 190ms cubic-bezier(0.3, 0, 0.2, 1);
+}
+.mode-pill[data-phase="settle"] {
+  transition:
+    transform 420ms cubic-bezier(0.28, 1.28, 0.36, 1),
+    width 420ms cubic-bezier(0.24, 1.34, 0.38, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mode-pill {
+    transition: none !important;
+  }
+}
+
+/* Brand 02's background orbs wander the page on three different loops, so they never sync up. The blue one starts
+   top right and swings down and across; the red one starts bottom left and climbs; the yellow one starts bottom right
+   and wanders up and left. Each swells a little as it goes. */
+@keyframes orb-drift-high {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-28vw, 22vh) scale(1.08);
+  }
+  50% {
+    transform: translate(-52vw, 6vh) scale(0.94);
+  }
+  75% {
+    transform: translate(-20vw, 44vh) scale(1.05);
+  }
+}
+
+@keyframes orb-drift-low {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(34vw, -26vh) scale(0.95);
+  }
+  50% {
+    transform: translate(56vw, -6vh) scale(1.08);
+  }
+  75% {
+    transform: translate(22vw, -44vh) scale(1);
+  }
+}
+
+@keyframes orb-drift-mid {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-30vw, -38vh) scale(1.06);
+  }
+  50% {
+    transform: translate(-58vw, -18vh) scale(0.94);
+  }
+  75% {
+    transform: translate(-24vw, -52vh) scale(1.04);
+  }
+}
+
 /* Brand 02's empty-slot orbs: a slow swell, like a sphere catching its breath. */
 @keyframes orb-breathe {
   0%,
@@ -158,6 +228,17 @@
   }
   50% {
     transform: scale(1.05);
+  }
+}
+
+/* Brand 02's shaker orb while held: a quick wobble that squashes it side to side, like something sloshing inside. */
+@keyframes orb-shake {
+  0%,
+  100% {
+    transform: translate(-3px, 1px) scale(1.06, 0.95);
+  }
+  50% {
+    transform: translate(3px, -1px) scale(0.95, 1.06);
   }
 }
 

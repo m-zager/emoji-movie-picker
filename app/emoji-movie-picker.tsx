@@ -1,15 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DiceRoll from "./dice-roll";
 import EmojiMagnetField from "./emoji-magnet-field";
 import GrainBurst from "./grain-burst";
 import PosterTilt from "./poster-tilt";
 import ServiceMenu from "./service-menu";
+import SlotLever from "./slot-lever";
+import { ORBS, SLOT_ORBS, type Brand } from "./brand";
+import { useBrand } from "./use-brand";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   PICK_COUNT,
   SERVICES,
@@ -56,18 +59,14 @@ function Reel({ emoji, index }: { emoji: string; index: number }) {
   );
 }
 
-/** Brand 02's empty slot: a soft gradient sphere, after the voice orbs on elevenlabs.io. One color per slot. */
-const SLOT_ORBS = [
-  "radial-gradient(circle at 32% 28%, #ffe4c8 0%, #ff9a5c 38%, #ec5524 70%, #b8300f 100%)",
-  "radial-gradient(circle at 32% 28%, #fde8ff 0%, #dba6ff 34%, #9b8cff 64%, #5d7dff 100%)",
-  "radial-gradient(circle at 32% 28%, #f6f8f1 0%, #cfdcc6 38%, #98af93 72%, #6c8669 100%)",
-];
+/** Brand 02's empty slot: the background orbs in miniature, a soft glow per slot with the same gradient, blur (scaled
+    to its size: the background's 64px blur on 520px) and 35% opacity, breathing slowly. */
 
 function SlotOrb({ index }: { index: number }) {
   return (
     <span
       aria-hidden
-      className="hidden size-[58%] animate-[orb-breathe_4s_ease-in-out_infinite] rounded-full shadow-[inset_-6px_-10px_18px_rgb(0_0_0/0.14),0_10px_24px_-10px_rgb(0_0_0/0.25)] brand-02:block"
+      className="hidden size-[58%] animate-[orb-breathe_4s_ease-in-out_infinite] rounded-full opacity-35 blur-[6px] brand-02:block sm:blur-[11px]"
       style={{ background: SLOT_ORBS[index % SLOT_ORBS.length], animationDelay: `${index * -1.3}s` }}
     />
   );
@@ -156,6 +155,16 @@ const MODES: { value: Mode; icon: string; label: string; tab: string }[] = [
   { value: "roll", icon: "🎲", label: "Shake the popcorn", tab: "Shake" },
 ];
 
+/** The modes a brand offers. Brand 02 has no Describe: it opens on Pick three instead. */
+function modesFor(brand: Brand) {
+  return brand === "02" ? MODES.filter((m) => m.value !== "describe") : MODES;
+}
+
+/** A mode's full name. Brand 02 shakes a gradient orb instead of the popcorn bucket, so its roll mode is named for that. */
+function modeLabel(m: (typeof MODES)[number], brand: Brand) {
+  return brand === "02" && m.value === "roll" ? "Shake the orb" : m.label;
+}
+
 /** A spring for the container growing and shrinking: quick, with no overshoot to wobble the page. */
 const GROW = { type: "spring" as const, stiffness: 260, damping: 34 };
 
@@ -182,48 +191,115 @@ function useHeight<T extends HTMLElement>() {
   return [ref, height] as const;
 }
 
-/** The Figma switcher: four emoji buttons on an inset dark track, with the selection sliding between them.
-    Brand 02 turns it into ElevenLabs-style tabs: a gray track, a raised white selection, and captions from lg up. */
+/** The Figma switcher: emoji buttons on an inset track, with one selection pill behind them. Brand 02 turns it into
+    ElevenLabs-style tabs (a gray track, a raised white selection, captions from lg up) and leaves out Describe.
+
+    The pill moves in two phases. First the leading edge runs ahead and the pill stretches across both tabs; then
+    the trailing edge catches up and the pill lands on the new tab with a slight overshoot (see .mode-pill in
+    globals.css). Its position is written straight to the DOM, so a switch doesn't re-render the toggle. */
 function ModeSwitch({ mode, onChange, disabled }: { mode: Mode; onChange: (m: Mode) => void; disabled: boolean }) {
+  const brand = useBrand();
+  const pill = useRef<HTMLSpanElement>(null);
+  const track = useRef<HTMLDivElement>(null);
+  const tabs = useRef<Partial<Record<Mode, HTMLButtonElement | null>>>({});
+  const at = useRef<{ x: number; w: number } | null>(null); // where the pill last came to rest
+  const handoff = useRef<number | undefined>(undefined);
+  const shown = useRef(mode);
+
+  const measure = (m: Mode) => {
+    const el = tabs.current[m];
+    return el ? { x: el.offsetLeft, w: el.offsetWidth } : null;
+  };
+  const paint = (box: { x: number; w: number }, phase: "rest" | "stretch" | "settle") => {
+    const el = pill.current;
+    if (!el) return;
+    el.dataset.phase = phase;
+    el.style.transform = `translate3d(${box.x}px, 0, 0)`;
+    el.style.width = `${box.w}px`;
+    el.style.opacity = "1";
+    if (phase !== "stretch") at.current = box;
+  };
+
+  // A new mode: stretch across from the old tab to the new one, then settle onto it.
+  useLayoutEffect(() => {
+    if (shown.current === mode) return;
+    shown.current = mode;
+    const to = measure(mode);
+    const from = at.current;
+    if (!to) return;
+    window.clearTimeout(handoff.current);
+    if (!from) return paint(to, "settle");
+    const left = Math.min(from.x, to.x);
+    const right = Math.max(from.x + from.w, to.x + to.w);
+    paint({ x: left, w: right - left }, "stretch");
+    // The handoff runs on the same clock as the stretch transition (190ms), a beat before it finishes.
+    handoff.current = window.setTimeout(() => paint(to, "settle"), 150);
+  }, [mode]);
+
+  // Snap without animating on mount, on resize (Brand 02's captions come and go at lg) and when the brand changes
+  // which tabs there are. Declared after the effect above, so a brand change that also changes the mode lands still.
+  useLayoutEffect(() => {
+    const snap = () => {
+      const box = measure(shown.current);
+      if (box) paint(box, "rest");
+    };
+    snap();
+    const observer = new ResizeObserver(snap);
+    if (track.current) observer.observe(track.current);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(handoff.current);
+    };
+  }, [brand]);
+
   return (
     <div
+      ref={track}
       role="radiogroup"
       aria-label="How to pick"
       className="relative flex shrink-0 items-center rounded-full bg-ink p-1 brand-02:bg-veil/[0.06]"
     >
-      {MODES.map(({ value, icon, label, tab }) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={mode === value}
-          aria-label={label}
-          title={label}
-          disabled={disabled}
-          onClick={() => onChange(value)}
-          className="relative flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full text-base transition-opacity disabled:cursor-not-allowed disabled:opacity-50 brand-02:lg:px-3"
-        >
-          {mode === value && (
-            <motion.span
-              layoutId="mode-selected"
-              transition={GROW}
-              className="absolute inset-0 rounded-full bg-olive brand-02:bg-ink brand-02:shadow-sm"
-            />
-          )}
-          <span className="relative">{icon}</span>
-          <span
-            className={`relative hidden text-sm brand-02:lg:inline ${mode === value ? "text-paper" : "text-muted-foreground"}`}
+      <span
+        ref={pill}
+        aria-hidden
+        className="mode-pill absolute top-1 left-0 h-9 rounded-full bg-olive opacity-0 brand-02:bg-ink brand-02:shadow-sm"
+      />
+      {modesFor(brand).map((m) => {
+        const { value, icon, tab } = m;
+        const label = modeLabel(m, brand);
+        return (
+          <button
+            key={value}
+            ref={(el) => {
+              tabs.current[value] = el;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={mode === value}
+            aria-label={label}
+            title={label}
+            disabled={disabled}
+            onClick={() => onChange(value)}
+            className="relative flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-full text-base transition-opacity disabled:cursor-not-allowed disabled:opacity-50 brand-02:lg:px-3"
           >
-            {tab}
-          </span>
-        </button>
-      ))}
+            <span className="relative">{icon}</span>
+            <span
+              className={`relative hidden text-sm transition-colors brand-02:lg:inline ${mode === value ? "text-paper" : "text-muted-foreground"}`}
+            >
+              {tab}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
-  const [mode, setMode] = useState<Mode>("describe");
+  const brand = useBrand();
+  const [chosenMode, setMode] = useState<Mode>("describe");
+  // Brand 02 offers no Describe, so there (including on first load) Describe resolves to Pick three.
+  const mode: Mode = brand === "02" && chosenMode === "describe" ? "manual" : chosenMode;
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [pick, setPick] = useState<MoviePick | null>(null);
@@ -324,7 +400,7 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
   }
 
   const slots = (
-    <div className="flex gap-4" aria-label="Your picks">
+    <div className="flex gap-2 sm:gap-4" aria-label="Your picks">
       {Array.from({ length: PICK_COUNT }, (_, i) => {
         const emoji = selected[i];
         const spinning = loading && reelsOn && i >= reelsStopped;
@@ -366,6 +442,30 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
     </p>
   );
 
+  // Pick my movie, once three emojis are in. While the pick loads, the button itself becomes the spinner, at full
+  // strength rather than faded.
+  const pickButton = (className: string) => (
+    <button
+      type="button"
+      disabled={loading}
+      aria-busy={loading}
+      onClick={() => pickMovie({ emojis: selected })}
+      className={`${className} items-center justify-center gap-2 rounded-full bg-lime pr-3 pl-4 text-sm text-ink transition enabled:hover:bg-lime/80 disabled:cursor-progress`}
+    >
+      {loading ? (
+        <>
+          <LoaderCircle className="size-4 animate-spin" aria-hidden />
+          Picking…
+        </>
+      ) : (
+        <>
+          Pick my movie
+          <span aria-hidden>→</span>
+        </>
+      )}
+    </button>
+  );
+
   // What the container holds below its top row. Nothing at all in Describe until there's something to show,
   // which keeps it the slim Figma pill on landing.
   let body: ReactNode = null;
@@ -380,7 +480,8 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
             ) : (
               <p className="text-3xl tracking-widest">{selected.join(" ")}</p>
             )}
-            <h2 className="mt-5 font-display text-4xl tracking-tight">{pick.title}</h2>
+            {/* Brand 02 keeps the movie title in Inter (at the display weight); only the page title is Google Sans Flex. */}
+            <h2 className="mt-5 font-display text-4xl tracking-tight brand-02:font-sans">{pick.title}</h2>
             <p className="mt-1 text-muted-foreground">{pick.year}</p>
             <p className="mt-5 text-lg leading-relaxed text-subtle">{pick.reason}</p>
             <WhereToWatch pick={pick} services={services} />
@@ -410,16 +511,23 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
         <div className="w-full overflow-hidden rounded-2xl bg-ink">
           <EmojiMagnetField selected={selected} onToggle={toggle} max={PICK_COUNT} disabled={loading} />
         </div>
+        {/* On phones Pick my movie lives here, full width at the bottom, rather than squeezed into the header. */}
+        {full && pickButton("flex h-11 w-full sm:hidden")}
         {errorNote}
       </>
     );
   } else {
     body = (
       <>
-        {slots}
-        <Button size="xl" onClick={() => pickMovie({ emojis: randomEmojis() }, { reels: true })} disabled={loading}>
-          {loading ? "Picking…" : "Roll for movie"}
-        </Button>
+        {/* The slot machine: three reels and the lever that spins them. */}
+        <div className="flex items-center gap-2 sm:gap-6">
+          {slots}
+          <SlotLever onPull={() => pickMovie({ emojis: randomEmojis() }, { reels: true })} disabled={loading} />
+        </div>
+        <p className="-mt-4 flex items-center gap-1.5 text-sm text-muted-foreground" aria-live="polite">
+          {loading && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          {loading ? "Spinning…" : "Pull the lever to spin."}
+        </p>
         {errorNote}
       </>
     );
@@ -451,40 +559,21 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
           );
         })}
       </div>
-      {full && !pick && (
-        // While the pick loads, the button itself becomes the spinner, at full strength rather than faded.
-        <button
-          type="button"
-          disabled={loading}
-          aria-busy={loading}
-          onClick={() => pickMovie({ emojis: selected })}
-          className="flex h-9 shrink-0 items-center gap-2 rounded-full bg-lime pr-3 pl-4 text-sm text-ink transition enabled:hover:bg-lime/80 disabled:cursor-progress"
-        >
-          {loading ? (
-            <>
-              <LoaderCircle className="size-4 animate-spin" aria-hidden />
-              Picking…
-            </>
-          ) : (
-            <>
-              Pick my movie
-              <span aria-hidden>→</span>
-            </>
-          )}
-        </button>
-      )}
+      {/* Beside the picks on wider screens; on phones it sits at the bottom of the container instead. */}
+      {full && !pick && pickButton("hidden h-9 shrink-0 sm:flex")}
     </div>
   );
 
   return (
-    // pb-20 keeps the footer clear of the fixed brand switch in the bottom-left corner.
-    <main className="relative flex min-h-dvh flex-col items-center bg-ink px-4 pt-12 pb-20 text-paper sm:px-6">
+    <main className="relative flex min-h-dvh flex-col items-center bg-ink px-4 py-12 text-paper sm:px-6">
       {/* Brand 01: stippled starburst behind everything, pinned to the window while the page scrolls. */}
       <GrainBurst className="fixed inset-0 size-full opacity-25 brand-02:hidden" />
-      {/* Brand 02: soft gradient orbs, after the spheres on elevenlabs.io. */}
+      {/* Brand 02: soft gradient orbs, after the spheres on elevenlabs.io, drifting slowly around the page on their
+          own loops (orb-drift-* in globals.css). Colors and gradient sizes from the Figma Brand 02 backdrop. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 hidden overflow-hidden brand-02:block">
-        <div className="absolute -top-40 -right-32 size-[520px] rounded-full bg-[radial-gradient(circle_at_35%_35%,#ffd2a8,#ff7a3d_45%,#e8481c_75%)] opacity-35 blur-3xl" />
-        <div className="absolute -bottom-48 -left-40 size-[560px] rounded-full bg-[radial-gradient(circle_at_60%_40%,#f3c4ff,#a98bff_45%,#6aa8ff_80%)] opacity-30 blur-3xl" />
+        <div className="absolute -top-40 -right-32 size-[520px] rounded-full animate-[orb-drift-high_40s_ease-in-out_infinite] opacity-35 blur-3xl will-change-transform" style={{ background: ORBS.blue }} />
+        <div className="absolute -bottom-48 -left-40 size-[560px] rounded-full animate-[orb-drift-low_52s_ease-in-out_infinite] opacity-35 blur-3xl will-change-transform" style={{ background: ORBS.red }} />
+        <div className="absolute -right-24 -bottom-40 size-[520px] rounded-full animate-[orb-drift-mid_46s_ease-in-out_-12s_infinite] opacity-35 blur-3xl will-change-transform" style={{ background: ORBS.yellow }} />
       </div>
 
       {/* Equal flexible space above and below keeps the title and container centered, as in the Figma frame.
@@ -492,9 +581,12 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
       <div aria-hidden className="grow basis-0" />
 
       <div className="relative flex w-full flex-col items-center gap-6">
-        <h1 className="text-center font-display text-4xl text-lime sm:text-[48px] sm:leading-[68px]">
-          Roll for Movie
-        </h1>
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="font-display text-4xl text-lime sm:text-[48px] sm:leading-[68px]">pick my movie</h1>
+          <p className="text-base text-muted-foreground sm:text-lg">
+            Can’t think of a movie to watch? Let’s pick one for you.
+          </p>
+        </div>
 
         {/* Brand 02: the streaming filter sits between the title and the container, centered. */}
         <div className="hidden justify-center brand-02:flex">
@@ -555,10 +647,17 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
               ) : mode === "manual" ? (
                 tray
               ) : (
-                <p className="truncate text-base text-paper">{current.label}</p>
+                // Brand 02 leaves the header bare in Spin and Shake: the selected tab already names the mode.
+                <p className="truncate text-base text-paper brand-02:hidden">{modeLabel(current, brand)}</p>
               )}
               {pick && (
-                <Button variant="secondary" size="lg" className="shrink-0 px-4" onClick={tryAgain}>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="shrink-0 px-4 has-data-[icon=inline-start]:pl-3"
+                  onClick={tryAgain}
+                >
+                  <RotateCcw data-icon="inline-start" aria-hidden />
                   Try again
                 </Button>
               )}
@@ -584,7 +683,10 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
                   className={
                     mode === "manual" && !pick
                       ? "flex flex-col items-center gap-3"
-                      : "flex flex-col items-center gap-8 px-2 pt-2 pb-6 sm:px-6"
+                      : mode === "auto" && !pick
+                        ? // Spin gets extra air above the slots and below the hint.
+                          "flex flex-col items-center gap-8 px-2 pt-8 pb-10 sm:px-6"
+                        : "flex flex-col items-center gap-8 px-2 pt-2 pb-6 sm:px-6"
                   }
                 >
                   {body}
