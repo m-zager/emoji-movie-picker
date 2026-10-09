@@ -8,6 +8,7 @@ import EmojiMagnetField from "./emoji-magnet-field";
 import GrainBurst from "./grain-burst";
 import PosterTilt from "./poster-tilt";
 import ServiceMenu from "./service-menu";
+import LimitPopover from "./limit-popover";
 import SlotLever from "./slot-lever";
 import { ORBS, SLOT_ORBS, type Brand } from "./brand";
 import { useBrand } from "./use-brand";
@@ -295,8 +296,14 @@ function ModeSwitch({ mode, onChange, disabled }: { mode: Mode; onChange: (m: Mo
   );
 }
 
-export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
+/** The pick API's "you've used all your picks" answer, kept apart from ordinary errors so it opens the popover. */
+class PickLimitReached extends Error {}
+
+export default function EmojiMoviePicker({ footer, initialPicksLeft }: { footer: ReactNode; initialPicksLeft: number }) {
   const brand = useBrand();
+  // Picks this browser has left (the server's count, from the signed cookie), and the popover shown at zero.
+  const [picksLeft, setPicksLeft] = useState(initialPicksLeft);
+  const [limitOpen, setLimitOpen] = useState(false);
   const [chosenMode, setMode] = useState<Mode>("describe");
   // Brand 02 offers no Describe, so there (including on first load) Describe resolves to Pick three.
   const mode: Mode = brand === "02" && chosenMode === "describe" ? "manual" : chosenMode;
@@ -358,6 +365,11 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
    * ("Spin the slots" only; the other modes go straight to the answer).
    */
   async function pickMovie(input: { emojis: string[] } | { description: string }, { reels = false } = {}) {
+    // Out of picks: show the popover straight away rather than spinning or loading first.
+    if (picksLeft <= 0) {
+      setLimitOpen(true);
+      return;
+    }
     if ("emojis" in input) setSelected(input.emojis);
     setLoading(true);
     setReelsStopped(0);
@@ -372,6 +384,7 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
           body: JSON.stringify({ ...input, services }),
         }).then(async (res) => {
           const body = await res.json();
+          if (body.limitReached) throw new PickLimitReached(body.error);
           if (!res.ok) throw new Error(body.error ?? "Something went wrong.");
           return body as MoviePick;
         }),
@@ -386,7 +399,14 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
         await wait(REEL_STOP_GAP_MS);
       }
       setPick(data);
+      setPicksLeft(data.picksLeft);
     } catch (err) {
+      if (err instanceof PickLimitReached) {
+        // The server is the source of truth (another tab may have used the last pick).
+        setPicksLeft(0);
+        setLimitOpen(true);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
@@ -394,6 +414,11 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
   }
 
   function tryAgain() {
+    // Out of picks: there's nothing to try again, so show the popover and leave the last movie in place behind it.
+    if (picksLeft <= 0) {
+      setLimitOpen(true);
+      return;
+    }
     setPick(null);
     setSelected([]);
     setError(null);
@@ -700,6 +725,7 @@ export default function EmojiMoviePicker({ footer }: { footer: ReactNode }) {
       <div className="relative flex w-full grow basis-0 flex-col items-center">
         <footer className="mt-auto max-w-3xl pt-12 text-center text-xs text-faint">{footer}</footer>
       </div>
+      <LimitPopover open={limitOpen} onOpenChange={setLimitOpen} />
     </main>
   );
 }
