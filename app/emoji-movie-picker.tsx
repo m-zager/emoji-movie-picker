@@ -25,6 +25,28 @@ import {
 } from "./movies";
 
 const SERVICES_STORAGE_KEY = "roll-for-movie:services";
+// The movies this browser has been shown (newest last), sent with each pick so they aren't suggested again.
+// Read and written only at pick time; storage can be unavailable (private mode), so both are guarded.
+const SEEN_STORAGE_KEY = "roll-for-movie:seen";
+const SEEN_MAX = 30;
+type Film = { title: string; year: number };
+
+function seenFilms(): Film[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SEEN_STORAGE_KEY) ?? "[]");
+    if (!Array.isArray(saved)) return [];
+    // Only well-formed entries, so a damaged list can't make the API reject the pick.
+    return saved.filter((f) => typeof f?.title === "string" && Number.isInteger(f?.year)).slice(-SEEN_MAX);
+  } catch {
+    return [];
+  }
+}
+
+function rememberFilm(film: Film) {
+  try {
+    localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify([...seenFilms(), film].slice(-SEEN_MAX)));
+  } catch {}
+}
 
 const MIN_SPIN_MS = 1200;
 const REEL_STOP_GAP_MS = 400;
@@ -381,7 +403,7 @@ export default function EmojiMoviePicker({ footer, initialPicksLeft }: { footer:
         fetch("/api/pick", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...input, services }),
+          body: JSON.stringify({ ...input, services, seen: seenFilms() }),
         }).then(async (res) => {
           const body = await res.json();
           if (body.limitReached) throw new PickLimitReached(body.error);
@@ -400,6 +422,7 @@ export default function EmojiMoviePicker({ footer, initialPicksLeft }: { footer:
       }
       setPick(data);
       setPicksLeft(data.picksLeft);
+      rememberFilm({ title: data.title, year: data.year });
     } catch (err) {
       if (err instanceof PickLimitReached) {
         // The server is the source of truth (another tab may have used the last pick).
