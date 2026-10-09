@@ -17,6 +17,11 @@ const RequestSchema = z
       .optional(),
     description: z.string().trim().min(2).max(300).optional(),
     services: z.array(z.enum(SERVICES.map((s) => s.key))).default([]),
+    // Movies this browser has already been shown, so the same emojis don't keep landing on the same film.
+    seen: z
+      .array(z.object({ title: z.string().max(200), year: z.number().int() }))
+      .max(30)
+      .default([]),
   })
   .refine((body) => !!body.emojis !== !!body.description, "Send either emojis or a description");
 
@@ -35,9 +40,14 @@ type Film = { title: string; year: number };
 
 const filmKey = (f: Film) => `${f.title.toLowerCase()}|${f.year}`;
 
-/** Ask Claude for ranked candidates; when a catalog is given, it must choose from that list. */
-async function suggestMovies(ask: string, catalog: Film[] | null): Promise<Candidate[]> {
+/** Ask Claude for ranked candidates, avoiding films already seen; when a catalog is given, it must choose from it. */
+async function suggestMovies(ask: string, catalog: Film[] | null, seen: Film[]): Promise<Candidate[]> {
   let content = ask;
+  if (seen.length > 0) {
+    content +=
+      `\n\nI've already been recommended these, so don't suggest any of them:\n` +
+      seen.map((f) => `- ${f.title} (${f.year})`).join("\n");
+  }
   if (catalog) {
     content +=
       `\n\nChoose only from these films, which are streaming on my services right now:\n` +
@@ -92,7 +102,8 @@ export async function POST(request: Request) {
     return Response.json({ error: `You've used all ${PICK_LIMIT} picks.`, limitReached: true }, { status: 429 });
   }
 
-  const { emojis, description, services } = body.data;
+  const { emojis, description, services, seen } = body.data;
+  const seenKeys = new Set(seen.map(filmKey));
   const ask = emojis
     ? `My picks: ${emojis.map((emoji) => `${emoji} (${VIBES.find((v) => v.emoji === emoji)!.label})`).join(", ")}`
     : `What I'm in the mood for: ${description}`;
@@ -107,14 +118,23 @@ export async function POST(request: Request) {
           })
         : [];
 
-    const candidates = await suggestMovies(ask, catalog.length > 0 ? catalog : null);
+    // Films already shown are left out of the catalog too, so Claude isn't offered them at all.
+    const unseenCatalog = catalog.filter((f) => !seenKeys.has(filmKey(f)));
+    const candidates = await suggestMovies(ask, unseenCatalog.length > 0 ? unseenCatalog : null, seen);
     if (candidates.length === 0) {
       return Response.json({ error: "Couldn't pick a movie for that combo. Try again." }, { status: 502 });
     }
 
-    // Prefer the best-ranked candidate that really is in the catalog, in case Claude strays from the list.
-    const inCatalog = new Set(catalog.map(filmKey));
-    const choice = candidates.find((c) => inCatalog.has(filmKey(c))) ?? candidates[0];
+    // Never repeat a film, even if Claude suggests one anyway; then prefer the best-ranked one in the catalog.
+    const fresh = candidates.filter((c) => !seenKeys.has(filmKey(c)));
+    if (fresh.length === 0) {
+      return Response.json(
+        { error: "Couldn't find a movie you haven't seen yet for that combo. Try different emojis." },
+        { status: 502 },
+      );
+    }
+    const inCatalog = new Set(unseenCatalog.map(filmKey));
+    const choice = fresh.find((c) => inCatalog.has(filmKey(c))) ?? fresh[0];
     const details = await lookUp(choice);
 
     const onYourServices =
