@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Geist_Mono, Google_Sans_Flex, Inter, Montserrat, Newsreader } from "next/font/google";
 import "./globals.css";
@@ -53,7 +54,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         montserrat.variable,
       )}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
