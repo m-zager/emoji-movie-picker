@@ -617,11 +617,12 @@ export default function EmojiMoviePicker({ footer, initialPicksLeft }: { footer:
       {/* Brand 01: stippled starburst behind everything, pinned to the window while the page scrolls. */}
       <GrainBurst className="fixed inset-0 size-full opacity-25 brand-02:hidden" />
       {/* Brand 02: soft gradient orbs, after the spheres on elevenlabs.io, drifting slowly around the page on their
-          own loops (orb-drift-* in globals.css). Colors and gradient sizes from the Figma Brand 02 backdrop. */}
+          own loops (orb-drift-* in globals.css). Colors and gradient sizes from the Figma Brand 02 backdrop.
+          On phones they're under half the screen width, so there's open background between them as they drift. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 hidden overflow-hidden brand-02:block">
-        <div className="absolute -top-40 -right-32 size-[520px] rounded-full animate-[orb-drift-high_40s_ease-in-out_infinite] opacity-35 blur-3xl will-change-transform" style={{ background: ORBS.blue }} />
-        <div className="absolute -bottom-48 -left-40 size-[560px] rounded-full animate-[orb-drift-low_52s_ease-in-out_infinite] opacity-35 blur-3xl will-change-transform" style={{ background: ORBS.red }} />
-        <div className="absolute -right-24 -bottom-40 size-[520px] rounded-full animate-[orb-drift-mid_46s_ease-in-out_-12s_infinite] opacity-35 blur-3xl will-change-transform" style={{ background: ORBS.yellow }} />
+        <div className="absolute -top-12 -right-12 size-[180px] rounded-full animate-[orb-drift-high_40s_ease-in-out_infinite] opacity-35 blur-2xl will-change-transform sm:-top-40 sm:-right-32 sm:size-[520px] sm:blur-3xl" style={{ background: ORBS.blue }} />
+        <div className="absolute -bottom-14 -left-14 size-[190px] rounded-full animate-[orb-drift-low_52s_ease-in-out_infinite] opacity-35 blur-2xl will-change-transform sm:-bottom-48 sm:-left-40 sm:size-[560px] sm:blur-3xl" style={{ background: ORBS.red }} />
+        <div className="absolute -right-10 -bottom-12 size-[170px] rounded-full animate-[orb-drift-mid_46s_ease-in-out_-12s_infinite] opacity-35 blur-2xl will-change-transform sm:-right-24 sm:-bottom-40 sm:size-[520px] sm:blur-3xl" style={{ background: ORBS.yellow }} />
       </div>
 
       {/* Equal flexible space above and below keeps the title and container centered, as in the Figma frame.
