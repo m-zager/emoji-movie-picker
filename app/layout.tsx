@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 const googleSansFlex = Google_Sans_Flex({
   variable: "--font-google-sans-flex",
   subsets: ["latin"],
+  // Next.js has no metrics for this font, so it can't build an adjusted fallback; globals.css falls back to system-ui.
+  adjustFontFallback: false,
 });
 
 const geistMono = Geist_Mono({
